@@ -164,7 +164,7 @@ public class NewBehaviourScript : MonoBehaviour
             r0 = rightHand.Fingers[0].TipPosition;
             r1 = rightHand.Fingers[1].TipPosition;
             rx = Vector3.Distance(r1, r0);
-           Debug.Log("FingerDist " + rx.ToString());
+            //Debug.Log("FingerDist " + rx.ToString());
 
             right_normal = rightHand.PalmNormal;
             right_direction = rightHand.Direction;
