@@ -41,6 +41,9 @@ time_thres = 100
 prev_time = 0
 pinky_thres = .95
 arm_pick = .95
+f = 0
+e1_sam = 0 
+e2_sam = 0
 """pointer_thres = .6"""
 
 while True:
@@ -50,29 +53,36 @@ while True:
     if ((curr_time - time_thres > prev_time)):  # if an EMG peak from channel 1 is detected and enough time has gone by since the last one, press key
         prev_time = curr_time # update time
         if(sample[0] >=  pinky_thres): 
-            t = t - 5
-            if (t >= 45):
-                Adeept.three_function("'servo_write'",4,t)
-            else:
+            t = t - 10
+            if (t < 45):
                 t = 45
         else:
             t = t + 10
-            if (t <= 135):
-                Adeept.three_function("'servo_write'",4,t)
-            else:
+            if (t > 135):
                 t = 135
-        if(sample[1] >=  arm_pick): 
-            w = w - 5
-            if (w >= 0):
-                Adeept.three_function("'servo_write'",1,w)
-            else:
-                w = 0
-        if(sample[2] >= arm_pick):
-            w = w + 5
-            if (w <= 180):
-                Adeept.three_function("'servo_write'",1,w)
-            else:
-                w = 180
+
+        if(f < 10):
+            f = f + 1
+        elif(f >= 10):
+            e1_sam = e1_sam + sample[1] 
+            e2_sam = e2_sam + sample[2]
+            e1_sam = e1_sam/f
+            e2_sam = e2_sam/f
+            arm_pick = (e1_sam - e2_sam) * 10000
+            print(arm_pick)
+            e = arm_pick
+            if(e > 180):
+                e = 180            
+            elif(e < 0):
+                e = 0
+            f = 0
+
+
+    Adeept.three_function("'servo_write'",0,q)
+    Adeept.three_function("'servo_write'",1,w)
+    Adeept.three_function("'servo_write'",2,e)
+    Adeept.three_function("'servo_write'",3,r)
+    Adeept.three_function("'servo_write'",4,t)    
 
     if keyboard.is_pressed("o"):
         break
