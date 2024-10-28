@@ -1,27 +1,44 @@
-import pandas as pd
 import numpy as np
-import os
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LinearRegression
+from sklearn.metrics import mean_squared_error, r2_score
+import matplotlib.pyplot as plt
 
-# データの読み込み (非推奨の 'delim_whitespace' の代わりに 'sep="\s+"' を使用)
-df1 = pd.read_csv('fingdata[1].txt', sep='\s+', header=None)
-df2 = pd.read_csv('fingdata[2].txt', sep='\s+', header=None)
+# データの読み込み
+x = np.loadtxt("fingdata[1].txt")
+y = np.loadtxt("fingdata[2].txt")
 
-# 読み込んだデータの確認（必要に応じて）
-print("Data from fingdata[1].txt:\n", df1.head())
-print("Data from fingdata[2].txt:\n", df2.head())
+print("xのデータ:", x)
+print("yのデータ:", y)
 
-# 数値データへの変換（必要に応じてエラー処理）
-df1 = df1.apply(pd.to_numeric, errors='coerce')
-df2 = df2.apply(pd.to_numeric, errors='coerce')
+# エラーチェック：xとyのデータの長さを確認
+if len(x) != len(y):
+    raise ValueError("xとyのデータの長さが一致していません。同じ長さのデータを使用してください。")
 
-# 欠損値を補完または削除
-df1.ffill(inplace=True)  # 前方補完
-df2.ffill(inplace=True)
-df1.dropna(inplace=True)  # 欠損値の削除
-df2.dropna(inplace=True)
+# xを2次元配列に変換
+X = x.reshape(-1, 1)  # 線形回帰では2次元配列が必要
 
-# 相関の計算
-correlation_matrix = df1.corrwith(df2, axis=0)
+# 訓練データとテストデータに分割
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-# 相関結果の出力
-print("Correlation between fingdata[1] and fingdata[2]:\n", correlation_matrix)
+# モデルのインスタンスを作成し、学習
+model = LinearRegression()
+model.fit(X_train, y_train)
+
+# 予測と評価
+y_pred = model.predict(X_test)
+
+# 平均二乗誤差と決定係数の計算
+mse = mean_squared_error(y_test, y_pred)
+r2 = r2_score(y_test, y_pred)
+
+print(f"平均二乗誤差 (MSE): {mse}")
+print(f"決定係数 (R2スコア): {r2}")
+
+# 結果の可視化
+plt.scatter(y_test, y_pred)
+plt.xlabel("True Values")
+plt.ylabel("Predictions")
+plt.title("True vs Predicted Values")
+plt.show()
