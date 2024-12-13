@@ -28,6 +28,8 @@ def process_emg_data(file1_path, file2_path):
         # 勾配を計算
         grad1 = np.gradient(file1)
         grad2 = np.gradient(file2)
+        mean1 = np.mean(file1)
+        mean2 = np.mean(file2)
         grad_diff = grad1 - grad2
 
         # 動的閾値を計算
@@ -36,10 +38,10 @@ def process_emg_data(file1_path, file2_path):
         # スライディングウィンドウ法で状態を判別
         states = []
         for i in range(len(grad_diff) - window_size + 1):
-            window = grad_diff[i:i + window_size]
-            if np.mean(window) > threshold:
+            
+            if np.mean(grad1) > threshold:
                 states.append("閉じている")
-            elif np.mean(window) < -threshold:
+            elif np.mean(grad2) < -threshold:
                 states.append("開いている")
             else:
                 states.append("不明")
@@ -63,8 +65,8 @@ class EMGFileHandler(FileSystemEventHandler):
 # === メイン処理 ===
 if __name__ == "__main__":
     # 監視するファイルのパスを指定
-    file1_path = "fingdata[1].txt"  # 尺側手根屈筋のデータ
-    file2_path = "fingdata[2].txt"  # 短橈側手根伸筋のデータ
+    file1_path = "fingdeta[a1].txt"  # 尺側手根屈筋のデータ
+    file2_path = "fingdeta[a2].txt"  # 短橈側手根伸筋のデータ
 
     # ファイルが存在するか確認
     if not (os.path.exists(file1_path) and os.path.exists(file2_path)):

@@ -7,13 +7,13 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import accuracy_score
 
 # === パラメータ設定 ===
-window_size = 4  # スライディングウィンドウのサイズ
+window_size = 5  # スライディングウィンドウのサイズ
 threshold_multiplier = 1.0  # ラベル付けの動的閾値の倍率
 
 # === データの読み込み ===
 try:
-    file1 = np.loadtxt('fingdata[1].txt')  # 尺側手根屈筋のデータ
-    file2 = np.loadtxt('fingdata[2].txt')  # 短橈側手根伸筋のデータ
+    file1 = np.loadtxt('fingdata[b1].txt')  # 尺側手根屈筋のデータ
+    file2 = np.loadtxt('fingdata[b2].txt')  # 短橈側手根伸筋のデータ
 except Exception as e:
     print(f"データ読み込みエラー: {e}")
     exit()
@@ -30,41 +30,64 @@ file2 = scaler.fit_transform(file2.reshape(-1, 1)).flatten()
 # 全データの勾配を計算
 grad_file1 = np.gradient(file1)
 grad_file2 = np.gradient(file2)
+gdf1 = 0
+gdf2 = 0
 
 # 勾配の差を計算
 grad_diff_all = grad_file1 - grad_file2
 
-# 動的な閾値を計算
-threshold = threshold_multiplier * np.std(grad_diff_all)
-print(f"動的に計算された閾値: {threshold:.2f}")
-threshold = max(threshold, 0.1)  # 最小値を設定して閾値が極端に小さくならないようにする
+# 動的閾値を計算する関数
+def calculate_dynamic_threshold(predictions, strategy='mean'):
+    """
+    動的閾値を計算する。
+    :param predictions: モデルが出力した確率値（リストまたは配列）
+    :param strategy: 閾値の計算方法（'mean', 'median', 'percentile'など）
+    :return: 計算された閾値
+    """
+    if strategy == 'mean':
+        return np.mean(predictions)
+    elif strategy == 'median':
+        return np.median(predictions)
+    elif strategy == 'percentile':
+        return np.percentile(predictions, 75)  # 75%タイル値
+    else:
+        raise ValueError("無効なstrategy指定")
+
+# 初期の閾値設定
+dynamic_threshold = 0.5
 
 # === スライディングウィンドウ法で特徴量とラベルを作成 ===
 X = []
 Y = []
 
 for i in range(len(file1) - window_size):
+
     # ウィンドウ内のデータを取得
     segment1 = file1[i:i + window_size]
     segment2 = file2[i:i + window_size]
 
     # ウィンドウ内の勾配を計算
-    grad1 = np.gradient(segment1)
-    grad2 = np.gradient(segment2)
-
-    # 勾配差の平均を計算
-    # grad_diff = np.mean(grad1 - grad2)
+    segment11 = segment1 * segment1
+    segmean1 = np.mean(segment11)
+    segment22 = segment2 * segment2
+    segmean2 = np.mean(segment22)
+    seg1 = segmean1 - gdf1
+    seg2 = segmean2 - gdf2
+    grad = seg1 - seg2
 
     # 入力データを作成（2チャンネルで結合）
     X.append(np.stack([segment1, segment2], axis=-1))
 
     # ラベル付け（勾配差を基に状態を判定）
-    if (grad1 > threshold).any():
+    if (seg1 > seg2).any():
         Y.append(1)  # 「閉じている」
-    elif (grad2 < threshold).any():
+    elif (seg1 < seg2).any():
         Y.append(0)  # 「開いている」
     else:
         Y.append(2)  # 「不明」
+    
+    gdf1 = seg1
+    gdf2 = seg2
 
 X = np.array(X)
 Y = np.array(Y)
@@ -95,7 +118,12 @@ history = model.fit(X_train, Y_train, epochs=20, batch_size=16, validation_split
 
 # === テストデータでの評価 ===
 Y_pred = model.predict(X_test)
-Y_pred_labels = (Y_pred > 0.5).astype(int)
+Y_pred_labels = []
+for pred in Y_pred:
+    # 閾値を更新（例: 平均値を動的閾値とする）
+    dynamic_threshold = calculate_dynamic_threshold(Y_pred, strategy='mean')
+    # 動的閾値に基づいてラベルを決定
+    Y_pred_labels.append(int(pred > dynamic_threshold))
 
 accuracy = accuracy_score(Y_test, Y_pred_labels)
 print(f"テストデータの精度: {accuracy:.2f}")
