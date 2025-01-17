@@ -33,27 +33,18 @@ def detect_state_changes(grad1, grad2, threshold):
 # メイン処理
 def main():
     # 筋電データのファイルを読み込む
-    flexor_data = load_emg_file("fingdata[1].txt")  # 尺側手根屈筋
-    extensor_data = load_emg_file("fingdata[2].txt")  # 短橈側手根伸筋
-
-    grad1 = 0
-    grad2 = 0
+    flexor_data = load_emg_file("fingdata[b1].txt")  # 尺側手根屈筋
+    extensor_data = load_emg_file("fingdata[b2].txt")  # 短橈側手根伸筋
 
     # 勾配計算
     grad_flexor = calculate_gradient(flexor_data)
     grad_extensor = calculate_gradient(extensor_data)
-    grad_flexor = grad_flexor * grad_flexor
-    segment1 = np.mean(grad_flexor)
-    grad_extensor = grad_extensor * grad_extensor
-    segment2 = np.mean(grad_extensor)
-    seg1 = grad1 - segment1
-    seg2 = grad2 - segment2
 
     # 動的に閾値を計算
-    threshold = 0
+    threshold = calculate_dynamic_threshold(grad_flexor, grad_extensor)
 
     # 状態変化を検出
-    state_changes = detect_state_changes(seg1, seg2, threshold)
+    state_changes = detect_state_changes(grad_flexor, grad_extensor, threshold)
 
     # 結果を表示
     print("検出された状態変化:")

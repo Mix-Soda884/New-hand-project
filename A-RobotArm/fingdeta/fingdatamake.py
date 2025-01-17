@@ -12,8 +12,8 @@ time_thres = 1
 prev_time = 0
 sample, timestamp = inlet.pull_sample()
 
-file_name0 = 'fingdata[b1].txt'
-file_name1 = 'fingdata[b2].txt'
+file_name0 = 'fingdata[3a].txt'
+file_name1 = 'fingdata[3b].txt'
 file_path0 = os.path.join(file_name0)
 file_path1 = os.path.join(file_name1)
 numbers0 = sample[0]
