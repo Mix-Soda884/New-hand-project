@@ -12,8 +12,8 @@ time_thres = 1
 prev_time = 0
 sample, timestamp = inlet.pull_sample()
 
-file_name0 = 'fingdata[3a].txt'
-file_name1 = 'fingdata[3b].txt'
+file_name0 = 'fingdata[6a].txt'
+file_name1 = 'fingdata[6b].txt'
 file_path0 = os.path.join(file_name0)
 file_path1 = os.path.join(file_name1)
 numbers0 = sample[0]
@@ -28,7 +28,7 @@ while True:
 
     sample, timestamp = inlet.pull_sample()
     numbers0 = sample[0]
-    curr_time = int(round(time.time() * 10)) 
+    curr_time = int(round(time.time() * 100)) 
     if ((curr_time - time_thres > prev_time)):
         with open(file_path0, 'a') as f:
             f.write(f"{numbers0}\n")
