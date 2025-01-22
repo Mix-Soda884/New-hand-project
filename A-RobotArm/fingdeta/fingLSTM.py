@@ -13,8 +13,8 @@ threshold_multiplier = 1.0  # ラベル付けの動的閾値の倍率
 
 # === データの読み込み ===
 try:
-    file1 = np.loadtxt('fingdata[3a].txt')  # 尺側手根屈筋のデータ
-    file2 = np.loadtxt('fingdata[3b].txt')  # 短橈側手根伸筋のデータ
+    file1 = np.loadtxt('fingdata[6a].txt')  # 浅指屈筋のデータ
+    file2 = np.loadtxt('fingdata[6b].txt')  # 短橈側手根伸筋のデータ
 except Exception as e:
     print(f"データ読み込みエラー: {e}")
     exit()

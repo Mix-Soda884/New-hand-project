@@ -1,55 +1,117 @@
+import tensorflow as tf
+from tensorflow.keras.models import load_model
 import numpy as np
+from sklearn.preprocessing import StandardScaler
+import time
+import keyboard  # キーボード入力監視用
+from pylsl import StreamInlet, resolve_stream  # LSL用
 
-# ファイルの読み込み
-def load_emg_file(file_path):
-    data = np.loadtxt(file_path)  # 改行区切りのデータを読み込み
-    return data
+# === モデルのロード ===
+def load_trained_model(model_path):
+    model = load_model(model_path)
+    return model
 
-# 勾配計算（差分）
-def calculate_gradient(data):
-    return np.gradient(data)
-
-# 勾配の閾値を自動調整
-def calculate_dynamic_threshold(grad1, grad2, multiplier=2.0):
+# === 筋電データのリアルタイム取得 (LSL) ===
+def get_realtime_emg_data(inlet, window_size):
     """
-    勾配の標準偏差を用いて動的な閾値を計算する。
-    multiplier: 標準偏差の何倍を閾値とするか
+    LSLからリアルタイムで筋電データを取得し、スライディングウィンドウ形式で返す。
     """
-    std1 = np.std(grad1)
-    std2 = np.std(grad2)
-    return multiplier * max(std1, std2)  # 両方の信号の中で大きい方を採用
+    emg_buffer = []  # ウィンドウサイズのデータを保持
+    while len(emg_buffer) < window_size:
+        sample, timestamp = inlet.pull_sample()
+        emg_buffer.append(sample[:2])  # 筋電データの2チャンネルを取得
+    
+    return np.array(emg_buffer)
 
-# 状態変化の検出
-def detect_state_changes(grad1, grad2, threshold):
-    changes = []
-    for i in range(len(grad1)):
-        if abs(grad1[i]) > threshold and abs(grad2[i]) > threshold:
-            if abs(grad1[i]) > abs(grad2[i]):
-                changes.append(("閉じる", i))
-            else:
-                changes.append(("開く", i))
-    return changes
+# === リアルタイム手の状態予測 ===
+def predict_hand_state(model, data, scaler):
+    """
+    モデルを使って手の状態を予測する。
+    """
+    # データをスケーリング
+    data_scaled = scaler.transform(data)
+    
+    # モデル入力形式に変換
+    data_input = np.expand_dims(data_scaled, axis=0)  # (1, window_size, 2)
+    
+    # モデルで予測
+    prediction = model.predict(data_input)
+    return 1 if prediction[0] > 0.5 else 0  # 0: 開く, 1: 閉じる
 
-# メイン処理
+# === メイン処理 ===
 def main():
-    # 筋電データのファイルを読み込む
-    flexor_data = load_emg_file("fingdata[b1].txt")  # 尺側手根屈筋
-    extensor_data = load_emg_file("fingdata[b2].txt")  # 短橈側手根伸筋
+    # モデルのパス
+    model_path = "my_model.h5"
+    model = load_trained_model(model_path)
+    print("モデルがロードされました。リアルタイム解析を開始します。")
+    
+    # LSLストリームのセットアップ
+    print("LSLストリームを解決中...")
+    streams = resolve_stream('type', 'EMG')  # EMGタイプのLSLストリームを解決
+    inlet = StreamInlet(streams[0])
+    print("LSLストリームが接続されました。")
+    
+    # 筋電データの読み込み (スケーラー適合用)
+    try:
+        file1 = np.loadtxt('fingdata[6a].txt')  # 浅指屈筋データ
+        file2 = np.loadtxt('fingdata[6b].txt')  # 短橈側手根伸筋データ
+    except Exception as e:
+        print(f"データ読み込みエラー: {e}")
+        exit()
 
-    # 勾配計算
-    grad_flexor = calculate_gradient(flexor_data)
-    grad_extensor = calculate_gradient(extensor_data)
+    # データ長を短い方に合わせる
+    min_length = min(len(file1), len(file2))
+    file1, file2 = file1[:min_length], file2[:min_length]
+    emg_data_combined = np.stack([file1, file2], axis=-1)  # (N, 2)
 
-    # 動的に閾値を計算
-    threshold = calculate_dynamic_threshold(grad_flexor, grad_extensor)
+    # スケーラーの適合
+    scaler = StandardScaler()
+    scaler.fit(emg_data_combined)
 
-    # 状態変化を検出
-    state_changes = detect_state_changes(grad_flexor, grad_extensor, threshold)
-
-    # 結果を表示
-    print("検出された状態変化:")
-    for state, index in state_changes:
-        print(f"時刻 {index}: 手を{state}")
-
+    # リアルタイム処理パラメータ
+    window_size = 5  # スライディングウィンドウサイズ
+    file_path0 = "fingdata[6a].txt"
+    file_path1 = "fingdata[6b].txt"
+    time_thres = 1000  # サンプリング間隔 (ミリ秒)
+    prev_time = int(round(time.time() * 1))
+    
+    try:
+        while True:
+            # 筋電データを取得
+            emg_data = get_realtime_emg_data(inlet, window_size)
+            
+            # データをファイルに保存
+            curr_time = int(round(time.time() * 100))
+            if curr_time - time_thres > prev_time:
+                numbers0 = emg_data[:, 0]
+                numbers1 = emg_data[:, 1]
+                
+                # ファイル書き込み
+                with open(file_path0, 'a') as f:
+                    f.write("\n".join(map(str, numbers0)) + "\n")
+                with open(file_path1, 'a') as f:
+                    f.write("\n".join(map(str, numbers1)) + "\n")
+                
+                # タイムスタンプ更新
+                prev_time = curr_time
+            
+            # 手の状態を予測
+            state = predict_hand_state(model, emg_data, scaler)
+            if state == 0:
+                print("手を開いています")
+            elif state == 1:
+                print("手を閉じています")
+            
+            # キーボード入力で終了
+            if keyboard.is_pressed("o"):
+                print("リアルタイム解析を終了します。")
+                break
+            
+            # 適切なインターバルを設定 (例: 100ms)
+            time.sleep(0.1)
+    
+    except KeyboardInterrupt:
+        print("処理が中断されました。")
+    
 if __name__ == "__main__":
     main()
