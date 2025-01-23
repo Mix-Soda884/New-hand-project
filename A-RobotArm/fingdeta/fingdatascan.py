@@ -3,8 +3,8 @@ from tensorflow.keras.models import load_model
 import numpy as np
 from sklearn.preprocessing import StandardScaler
 import time
-import keyboard  # キーボード入力監視用
-from pylsl import StreamInlet, resolve_stream  # LSL用
+import keyboard
+from pylsl import StreamInlet, resolve_stream
 
 # === モデルのロード ===
 def load_trained_model(model_path):
@@ -54,7 +54,7 @@ def main():
     # 筋電データの読み込み (スケーラー適合用)
     try:
         file1 = np.loadtxt('fingdata[6a].txt')  # 浅指屈筋データ
-        file2 = np.loadtxt('fingdata[6b].txt')  # 短橈側手根伸筋データ
+        file2 = np.loadtxt('fingdata[6b].txt')  # 総指伸筋データ
     except Exception as e:
         print(f"データ読み込みエラー: {e}")
         exit()
@@ -70,21 +70,21 @@ def main():
 
     # リアルタイム処理パラメータ
     window_size = 5  # スライディングウィンドウサイズ
-    file_path0 = "fingdata[6a].txt"
-    file_path1 = "fingdata[6b].txt"
-    time_thres = 1000  # サンプリング間隔 (ミリ秒)
-    prev_time = int(round(time.time() * 1))
+    file_path0 = "fingdata[1].txt"
+    file_path1 = "fingdata[2].txt"
+    time_thres = 100  # サンプリング間隔 (ミリ秒)
+    prev_time = int(round(time.time() * 100))
     
     try:
         while True:
             # 筋電データを取得
             emg_data = get_realtime_emg_data(inlet, window_size)
-            
+            numbers0 = emg_data[:, 0]
+            numbers1 = emg_data[:, 1]
+
             # データをファイルに保存
             curr_time = int(round(time.time() * 100))
             if curr_time - time_thres > prev_time:
-                numbers0 = emg_data[:, 0]
-                numbers1 = emg_data[:, 1]
                 
                 # ファイル書き込み
                 with open(file_path0, 'a') as f:
@@ -94,13 +94,13 @@ def main():
                 
                 # タイムスタンプ更新
                 prev_time = curr_time
-            
+
             # 手の状態を予測
             state = predict_hand_state(model, emg_data, scaler)
             if state == 0:
-                print("手を開いています")
+                print(f"手を開いています(state:{numbers0:4f})")
             elif state == 1:
-                print("手を閉じています")
+                print(f"手を閉じています(state:{numbers1:4f})")
             
             # キーボード入力で終了
             if keyboard.is_pressed("o"):

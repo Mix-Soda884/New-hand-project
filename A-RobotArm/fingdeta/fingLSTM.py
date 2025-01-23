@@ -13,8 +13,8 @@ threshold_multiplier = 1.0  # ラベル付けの動的閾値の倍率
 
 # === データの読み込み ===
 try:
-    file1 = np.loadtxt('fingdata[6a].txt')  # 浅指屈筋のデータ
-    file2 = np.loadtxt('fingdata[6b].txt')  # 短橈側手根伸筋のデータ
+    file1 = np.loadtxt('fingdata[5a].txt')  # 浅指屈筋のデータ
+    file2 = np.loadtxt('fingdata[5b].txt')  # 短橈側手根伸筋のデータ
 except Exception as e:
     print(f"データ読み込みエラー: {e}")
     exit()
@@ -108,7 +108,7 @@ Y = Y[mask]
 X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.2, random_state=42)
 
 try:
-    model = load_model('my_model.h5')  # 既存モデルをロード
+    model = load_model('model_4.h5')  # 既存モデルをロード
 except:
     # 新しいモデルを構築
     model = Sequential([
@@ -129,7 +129,7 @@ model.compile(
 history = model.fit(X_train, Y_train, epochs=20, batch_size=16, validation_split=0.1)
 
 # === モデルの保存 ===
-model.save('my_model.h5')  
+model.save('model_4_5.h5')
 
 # === テストデータでの評価 ===
 Y_pred = model.predict(X_test)
